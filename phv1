@@ -1,0 +1,230 @@
+if not Drawing then return end
+
+local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
+local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local ThemeManager = loadstring(game:HttpGet(repo .. "addons/ThemeManager.lua"))()
+local SaveManager = loadstring(game:HttpGet(repo .. "addons/SaveManager.lua"))()
+
+local Options, Toggles = Library.Options, Library.Toggles
+local Window = Library:CreateWindow({
+    Title = "Visual",
+    Footer = "get good :skull:",
+    Icon = 95816097006870,
+    NotifySide = "Right",
+    ShowCustomCursor = true,
+})
+
+local Tabs = {
+    Main = Window:AddTab("Main", "user"),
+    ["UI Settings"] = Window:AddTab("UI Settings", "settings"),
+}
+
+local LeftGroupBox = Tabs.Main:AddLeftGroupbox("Main", "shield")
+local RightGroupBox = Tabs.Main:AddRightGroupbox("Misc", "boxes")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Camera = workspace.CurrentCamera
+local center = Camera.ViewportSize / 2
+local Axis_X, Axis_Y = center.X, center.Y
+
+
+
+
+
+local moduleCache
+for i, v in next, getgc(true) do
+    if type(v) == "table" and rawget(v, "ScreenCull") and rawget(v, "NetworkClient") then
+        moduleCache = v
+        break
+    end
+end
+
+local modules = {}
+if moduleCache then
+    for name, data in pairs(moduleCache) do
+        if type(data) == "table" and rawget(data, "module") then
+            modules[name] = data.module
+        end
+    end
+end
+
+local recoil = modules.RecoilSprings
+local oldApplyImpulse = recoil and recoil.applyImpulse
+
+RightGroupBox:AddToggle("NoRecoilToggle", {
+    Text = "No Recoil",
+    Tooltip = "Toggle recoil on/off",
+    Default = false,
+    Callback = function(Value)
+        if recoil then
+            recoil.applyImpulse = Value and function(...) return end or oldApplyImpulse
+            Library:Notify({
+                Title = Value and "Recoil Disabled" or "Recoil Enabled",
+                Description = Value and "No recoil active" or "Recoil restored",
+                Time = 3
+            })
+        end
+    end,
+})
+
+
+local modifyData = modules.ModifyData
+local getModifiedData = modifyData and modifyData.getModifiedData
+local NoCrosshairEnabled = false
+
+function modifyData.getModifiedData(data, ...)
+    setreadonly(data, false)
+    if NoCrosshairEnabled and data.crosssize then
+        data.crosssize = 10000000
+        data.crossexpansion = 0
+        data.crossspeed = 100
+        data.crossdamper = 1
+    end
+    return getModifiedData(data, ...)
+end
+
+RightGroupBox:AddToggle("NoDefaultCrosshair", {
+    Text = "No Default Crosshair",
+    Default = false,
+    Callback = function(Value)
+        NoCrosshairEnabled = Value
+        Library:Notify({
+            Title = Value and "Crosshair Disabled" or "Crosshair Enabled",
+            Description = Value and "Default crosshair removed" or "Default crosshair restored",
+            Time = 3,
+        })
+    end,
+})
+
+LeftGroupBox:AddDivider()
+
+_G.CrosshairEnabled = false
+_G.CrosshairSize = 20
+_G.CrosshairThickness = 1
+_G.CrosshairColor = Color3.fromRGB(0, 255, 0)
+_G.CrosshairTransparency = 1
+
+local HorizontalLine, VerticalLine = Drawing.new("Line"), Drawing.new("Line")
+local function updateLine(line, fromX, fromY, toX, toY)
+    line.Color = _G.CrosshairColor
+    line.Thickness = _G.CrosshairThickness
+    line.Visible = _G.CrosshairEnabled
+    line.Transparency = _G.CrosshairTransparency
+    line.From = Vector2.new(fromX, fromY)
+    line.To = Vector2.new(toX, toY)
+end
+
+RunService.RenderStepped:Connect(function()
+    if not _G.CrosshairEnabled then
+        HorizontalLine.Visible, VerticalLine.Visible = false, false
+        return
+    end
+    local half = _G.CrosshairSize / 2
+    updateLine(HorizontalLine, Axis_X - half, Axis_Y, Axis_X + half, Axis_Y)
+    updateLine(VerticalLine, Axis_X, Axis_Y - half, Axis_X, Axis_Y + half)
+end)
+
+RightGroupBox:AddToggle("CrosshairEnabled", {
+    Text = "Enable Crosshair",
+    Default = _G.CrosshairEnabled,
+    Callback = function(Value) _G.CrosshairEnabled = Value end,
+})
+    :AddColorPicker("ColorPicker1", {
+		Default = Color3.fromRGB(0, 255, 0),
+		Title = "Crosshair Color", -- Optional. Allows you to have a custom color picker title (when you open it)
+		Transparency = nil, -- Optional. Enables transparency changing for this color picker (leave as nil to disable)
+
+		Callback = function(Value)
+			_G.CrosshairColor = Value
+		end,
+	})
+
+RightGroupBox:AddSlider("Size", {
+	Text = "Crosshair Size",
+	Default = 20,
+	Min = 20,
+	Max = 40,
+	Rounding = 1,
+	Compact = false,
+
+	Callback = function(Value)
+		_G.CrosshairSize = Value
+	end,
+
+	Tooltip = "", -- Information shown when you hover over the slider
+	DisabledTooltip = "I am disabled!", -- Information shown when you hover over the slider while it's disabled
+
+	Disabled = false, -- Will disable the slider (true / false)
+	Visible = true, -- Will make the slider invisible (true / false)
+})
+
+------
+RightGroupBox:AddSlider("Thickness", {
+	Text = "Crosshair Thickness",
+	Default = 1,
+	Min = 1,
+	Max = 10,
+	Rounding = 1,
+	Compact = false,
+
+	Callback = function(Value)
+		_G.CrosshairThickness = Value
+	end,
+
+	Tooltip = "", -- Information shown when you hover over the slider
+	DisabledTooltip = "I am disabled!", -- Information shown when you hover over the slider while it's disabled
+
+	Disabled = false, -- Will disable the slider (true / false)
+	Visible = true, -- Will make the slider invisible (true / false)
+})
+
+
+
+local MenuGroup = Tabs["UI Settings"]:AddLeftGroupbox("Menu", "wrench")
+
+MenuGroup:AddLabel("ui library: obsidian")
+MenuGroup:AddLabel("ty 2 mspaint v2")
+
+MenuGroup:AddToggle("KeybindMenuOpen", {
+    Default = Library.KeybindFrame.Visible,
+    Text = "Open Keybind Menu",
+    Callback = function(value) Library.KeybindFrame.Visible = value end,
+})
+MenuGroup:AddToggle("ShowCustomCursor", {
+    Text = "Custom Cursor",
+    Default = true,
+    Callback = function(Value) Library.ShowCustomCursor = Value end,
+})
+MenuGroup:AddDropdown("NotificationSide", {
+    Values = { "Left", "Right" },
+    Default = "Right",
+    Text = "Notification Side",
+    Callback = function(Value) Library:SetNotifySide(Value) end,
+})
+MenuGroup:AddDropdown("DPIDropdown", {
+    Values = { "50%", "75%", "100%", "125%", "150%", "175%", "200%" },
+    Default = "100%",
+    Text = "DPI Scale",
+    Callback = function(Value)
+        local DPI = tonumber(Value:gsub("%%", ""))
+        Library:SetDPIScale(DPI)
+    end,
+})
+MenuGroup:AddDivider()
+MenuGroup:AddLabel("Menu bind")
+    :AddKeyPicker("MenuKeybind", { Default = "M", NoUI = true, Text = "Menu keybind" })
+
+MenuGroup:AddButton("Unload", function() Library:Unload() end)
+
+Library.ToggleKeybind = Options.MenuKeybind
+
+ThemeManager:SetLibrary(Library)
+SaveManager:SetLibrary(Library)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
+ThemeManager:SetFolder("MyScriptHub")
+SaveManager:SetFolder("MyScriptHub/specific-game")
+SaveManager:SetSubFolder("specific-place")
+SaveManager:BuildConfigSection(Tabs["UI Settings"])
+ThemeManager:ApplyToTab(Tabs["UI Settings"])
+SaveManager:LoadAutoloadConfig()
